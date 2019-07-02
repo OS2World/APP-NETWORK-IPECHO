@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- *
- * myip.c                                                                     *
+ * ipecho.c                                                                   *
  *                                                                            *
  *  This program is free software; you can redistribute it and/or modify      *
  *  it under the terms of the GNU General Public License as published by      *
@@ -63,7 +63,7 @@
 #define SZ_DEFAULT_ECHO_DIR         "/"
 #define SZ_DEFAULT_FIND_AFTER       "Address:"
 
-#define SZ_CONFIG_FILE              "myip.cfg"  // name of our configuration file
+#define SZ_CONFIG_FILE              "ipecho.cfg"  // name of our configuration file
 
 
 // -----------------------------------------------------------------------------
@@ -117,9 +117,11 @@ int main( int argc, char *argv[] )
     usVerbosity = MESSAGE_NORMAL;
     if ( argc > 1 ) {
         for ( a = 1; a < argc; a++ ) {
-            if ( strnicmp( argv[a], "/?", 2 ) == 0 ) {
-                printf("MYIP - Query the system's public IP address (as seen by an outside server).\n");
-                printf("Arguments:\n");
+            if (( strnicmp( argv[a], "/?", 2 ) == 0 ) || ( strnicmp( argv[a], "/h", 2 ) == 0 )) {
+                printf("IPEcho version 1.0. (C) 2006, 2018 Alexander Taylor.\n");
+                printf("Licensed under version 2 of the GNU General Public License.\n\n");
+                printf("Query the system's public IP address (as seen by an outside server).\n");
+                printf("\nArguments:\n");
                 printf("  /?   Show this help.\n");
                 printf("  /V   Print detailed (verbose) output.\n");
                 printf("  /VV  Print even more detailed (diagnostic) output.\n");
@@ -173,7 +175,6 @@ SHORT ReadConfig( ECHOPARMS echo_p[], USHORT usVerbosity )
     USHORT usPort,                              // IP port on server
            usCount;                             // number of servers configured
     FILE   *pfConfig;                           // configuration file handle
-    APIRET rc;
 
 
     // Look for a configuration file under %ETC%
@@ -207,23 +208,32 @@ SHORT ReadConfig( ECHOPARMS echo_p[], USHORT usVerbosity )
         // skip blank or commented lines
         if (( strlen(szBuf) == 0 ) || ( szBuf[0] == '#') || ( szBuf[0] == ';')) continue;
 
+//        sprintf( szMessage, " > %s\n", szBuf );
+//        message_out( szMessage, MESSAGE_DIAGNOSTIC, usVerbosity );
+
         // parse entry in the format: <host> <port> <path> <after>
 
         // hostname
         if (( token = strtok( szBuf, " ")) == NULL ) continue;
         strncpy( szServer, token, US_SZHOSTNAME_MAX );
 
+//printf("server %s;", szServer );
+
         // port
         if (( token = strtok( NULL, " ")) == NULL ) continue;
         if ( sscanf( token, "%d", &usPort ) == 0 ) continue;
+
+//printf("port %d;", usPort);
 
         // path
         if (( token = strtok( NULL, " ")) == NULL ) continue;
         strncpy( szDir, token, US_SZPATH_MAX );
 
+//printf("port ");
+
         // after
-        if (( token = strtok( NULL, "\0")) == NULL ) continue;
-        strncpy( szFindAfter, token, US_SZAFTER_MAX );
+        if (( token = strtok( NULL, "\0")) != NULL )
+            strncpy( szFindAfter, token, US_SZAFTER_MAX );
 
         echo_p[usCount].usPort = usPort;
         strcpy( echo_p[usCount].szServer,    szServer    );
@@ -394,15 +404,19 @@ ULONG EchoQuery( ECHOPARMS echo_p, USHORT usVerbosity )
     USHORT usTries = 0;
     CHAR   szCommand[ US_SZCOMMAND_MAX + 1 ],
            szResponse[ US_SZRESPONSE_MAX + 1 ] = "\0";
-    PSZ    pszOffset;
+    PSZ    pszBody, pszOffset;
     int    ip1, ip2, ip3, ip4;
+    BOOL   fChunked = FALSE;
 
     VIOMODEINFO mode;
     USHORT      c, cols;
     CHAR        chSep;
 
-
-    sprintf( szCommand, "GET http://%s%s HTTP/1.0\r\n\r\n", echo_p.szServer, echo_p.szDir );
+#ifdef USE_HTTP_10
+    sprintf( szCommand, "GET http://%s%s HTTP/1.0\r\nAccept: */*\r\n\r\n", echo_p.szServer, echo_p.szDir );
+#else
+    sprintf( szCommand, "GET %s HTTP/1.1\r\nHost: %s\r\nAccept: */*\r\n\r\n", echo_p.szDir, echo_p.szServer );
+#endif
     ulRc = SocketWrite( echo_p.ulSocket, szCommand );
     if ( ulRc == 0 ) return ( 1 );
 
@@ -428,15 +442,33 @@ ULONG EchoQuery( ECHOPARMS echo_p, USHORT usVerbosity )
         printf("\n");
     }
 
+    // Check the transfer encoding as it affects our parsing logic
+    if ( strstr( szResponse, "\r\nTransfer-Encoding: chunked\r\n") != NULL )
+        fChunked = TRUE;
+
+    // Skip past the first blank line (marking the end of HTTP headers)
+    pszBody = strstr( szResponse, "\r\n\r\n");
+    pszBody = pszBody ? pszBody+4 : szResponse;
+
+    if ( fChunked ) {
+        // Skip the next line (which specifies the chunk size)
+        pszBody = strstr( pszBody, "\r\n");
+        pszBody = pszBody ? pszBody+2 : szResponse;
+    }
+
     // Look for the "find after" string
-    pszOffset = strstr( szResponse, echo_p.szFindAfter );
-    if ( pszOffset == NULL ) pszOffset = szResponse;
+    pszOffset = echo_p.szFindAfter[0] ?
+                    strstr( pszBody, echo_p.szFindAfter ) :
+                    NULL;
+    if ( pszOffset == NULL ) pszOffset = pszBody;
     else pszOffset += strlen( echo_p.szFindAfter );
 
     // Now try and parse the IP address
+
     ulRc = sscanf( pszOffset, "%3d.%3d.%3d.%3d", &ip1, &ip2, &ip3, &ip4 );
     if ( ulRc != 4 ) {
         printf("Could not parse IP address from server response.\n");
+        message_out( pszOffset, MESSAGE_VERBOSE, usVerbosity );
         return ( 1 );
     }
     message_out("Returned IP Address: ", MESSAGE_VERBOSE, usVerbosity );

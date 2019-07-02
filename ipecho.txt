@@ -1,41 +1,46 @@
-MYIP.EXE
+IPECHO
+Version 1.0
 
-  MYIP is a simple TCP/IP utility for querying the current system's IP address 
+  IPEcho is a simple TCP/IP utility for querying the current system's IP address 
   **as seen by the outside world**.  This may or may not be the same as the 
   locally-configured IP address, depending on how the system is connected to 
   the Internet.
 
-  When run, MYIP contacts a special website which provides an 'IP echo' 
+  When run, IPEcho contacts a special website which provides an 'IP echo' 
   service: this service reports the IP address of your computer as the remote 
   server sees it.  This allows you to determine your public IP address even if 
   you are connecting through a firewall or router that uses port-level network 
   address translation (also known as IP masquerading or IP address sharing).
 
   Obviously, this requires that an IP echo website actually be available.  The
-  default configuration file provided (MYIP.CFG) contains two which seem to 
+  default configuration file provided (IPECHO.CFG) contains two which seem to 
   work reasonably well.
 
-  MYIP requires a 32-bit TCP/IP stack: in other words, MPTS v5.3 (WR*8600) or 
+  IPECHO requires a 32-bit TCP/IP stack: in other words, MPTS v5.3 (WR*8600) or 
   higher.
+
+  Versions 0.2 and earlier of this program were known by the name MYIP.  There
+  is a fork of that codebase which still uses the latter name, so for the sake
+  of disambiguating the two, this version has been renamed to IPECHO.
 
 
 INSTALLATION
 
-  Copy MYIP.CFG to the directory indicated by the environment variable 'ETC' 
+  Copy IPECHO.CFG to the directory indicated by the environment variable 'ETC' 
   (e.g. C:\MPTN\ETC).  You may edit this file to modify the list of available
   echo sites if you wish; the format is documented below.
 
-  Place MYIP.EXE somewhere in the PATH.
+  Place IPECHO.EXE somewhere in the PATH.
 
 
 USAGE
 
-  To use the program normally, simply run MYIP.EXE with no parameters.  The
-  program will attempt to contact the first site defined in MYIP.CFG and use
-  it to query your IP address.  If one site fails, MYIP will try the next site 
+  To use the program normally, simply run IPECHO.EXE with no parameters.  The
+  program will attempt to contact the first site defined in IPECHO.CFG and use
+  it to query your IP address.  If one site fails, IPECHO will try the next site 
   listed, up to a maximum of three sites.
 
-  MYIP accepts any one of three optional arguments:
+  IPECHO accepts any one of three optional arguments:
 
   /?   Display a brief help message.
   /V   Use verbose output.
@@ -44,18 +49,18 @@ USAGE
 
 HOW IT WORKS
 
-  MYIP works by simply opening an HTTP connection to the designated server,
+  IPECHO works by simply opening an HTTP connection to the designated server,
   using the URL and port indicated, and attempting to parse the IP address from
   a designated point in the returned data.  Therefore, the site in question 
   must be designed to return the correct IP address in the expected format.
 
-  MYIP will read a maximum of 4 kilobytes (4096 bytes) from the returned data;
+  IPECHO will read a maximum of 4 kilobytes (4096 bytes) from the returned data;
   this is an intentional limitation implemented for safety reasons.
 
 
 CONFIGURATION FILE FORMAT
 
-  Each non-comment, non-blank line in MYIP.CFG defines a single website.  
+  Each non-comment, non-blank line in IPECHO.CFG defines a single website.  
   Leading and trailing whitespace is ignored.  The format of each entry is:
 
   <server> <port> <path> <text>
@@ -65,17 +70,17 @@ CONFIGURATION FILE FORMAT
     <port>   is the IP port (normally 80) to connect on 
     <path>   is the path to the site on the server which provides the IP echo
              service
-    <text>   is the text within the returned data, following which MYIP will
+    <text>   is the text within the returned data, following which IPECHO will
              attempt to parse the IP address
 
-  MYIP will only make use of the first three servers that it successfully 
+  IPECHO will only make use of the first three servers that it successfully 
   parses from this file.  Blank lines, as well as those starting with ';' or 
   '#', are ignored.
 
 
 COMPILING
 
-  I have successfully built MYIP with three different OS/2 C compilers:
+  I have successfully built IPECHO with three different OS/2 C compilers:
     * A simple batch file (BUILD.CMD) is provided for building with IBM 
       VisualAge C++ (version 3.0 or 3.6.5).
     * Compiling with Innotek GCC is as simple as running 'gcc myip.c'.
@@ -87,7 +92,7 @@ COMPILING
 
 NOTICES
 
-  MYIP is (C) 2006 Alex Taylor.  
+  IPECHO is (C) 2006, 2018 Alex Taylor.  
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -103,9 +108,9 @@ NOTICES
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-  MYIP was inspired by the REXX program "GetMyIP" by Peter LÅersen, from which
+  IPECHO was inspired by the REXX program "GetMyIP" by Peter LÅersen, from which
   much of the logic was obtained.
 
 -- 
 Alex Taylor
-http://www.cs-club.org/~alex
+http://www.altsan.org
